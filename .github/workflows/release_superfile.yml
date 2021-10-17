@@ -1,0 +1,43 @@
+name: Release superfile
+
+on: push
+
+jobs:
+  superfile:
+    runs-on: ubuntu-20.04
+    if: "startsWith(github.event.head_commit.message, 'RELEASE')"
+    steps:
+    - id: changelog
+      uses: zhaojh329/auto-changelog@master
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+    - id: checkout
+      uses: actions/checkout@v2
+    - name: Download lua
+      uses: leafo/gh-actions-lua@v8.0.0
+      with:
+        luaVersion: "5.3.5"
+    - id: superfile
+      run: |
+        cd luapack
+        lua main.lua ../addons/igs-core/lua superfile.json
+    - id: igsmod
+      run: |
+        cd addons
+        zip -x "*.DS_Store" -r igs-mod.zip igs-modification/
+    - id: parse_version
+      run: |
+        VERSION="${{ github.event.head_commit.message }}"
+        echo ::set-output name=parsed_version::${VERSION:8}
+    - id: release
+      uses: softprops/action-gh-release@v1
+      with:
+        body: ${{steps.changelog.outputs.changelog}}
+        tag_name: ${{ steps.parse_version.outputs.parsed_version }}
+        #draft: true
+        prerelease: false
+        files: |
+          luapack/superfile.json
+          addons/igs-mod.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
